@@ -80,3 +80,29 @@ def test_concurrent_cancel_for_same_booking():
     # Assertions
     assert len(refund_logs) == 1, f"Duplicate RefundLogs created! Count: {len(refund_logs)}"
     assert status_codes.count(200) == 1, f"More than one success! Statuses: {status_codes}"
+
+
+def test_malformed_datetime_booking():
+    """Verify that sending a malformed datetime string returns a 400 INVALID_BOOKING_WINDOW error."""
+    ts = datetime.now().timestamp()
+    org = f"malformed-{ts}"
+    headers = _register_and_login(org, "admin1")
+
+    # Create room
+    room = client.post(
+        "/rooms",
+        json={"name": "RoomM", "capacity": 10, "hourly_rate_cents": 1000},
+        headers=headers,
+    )
+    room_id = room.json()["id"]
+
+    # Create booking with malformed start_time
+    resp = client.post(
+        "/bookings",
+        json={"room_id": room_id, "start_time": "invalid-date", "end_time": _future(6)},
+        headers=headers,
+    )
+    print("MALFORMED DATETIME RESPONSE:", resp.status_code, resp.json())
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID_BOOKING_WINDOW"
+
